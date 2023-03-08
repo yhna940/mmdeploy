@@ -97,15 +97,15 @@ class ORTWrapper(BaseWrapper):
                 buffer_ptr=input_tensor.data_ptr())
 
         for name in self._output_names:
-            self.io_binding.bind_output(name)
+            self.io_binding.bind_output(name, device_type=self.device_type)
         # run session to get outputs
         if self.device_type == 'cuda':
             torch.cuda.synchronize()
         self.__ort_execute(self.io_binding)
-        output_list = self.io_binding.copy_outputs_to_cpu()
+        output_list = self.io_binding.get_outputs()
         outputs = {}
-        for output_name, numpy_tensor in zip(self._output_names, output_list):
-            outputs[output_name] = torch.from_numpy(numpy_tensor)
+        for output_name, ortvalue in zip(self._output_names, output_list):
+            outputs[output_name] = self._ortvalue_to_torch_tensor(ortvalue)
 
         return outputs
 
@@ -118,3 +118,8 @@ class ORTWrapper(BaseWrapper):
                 device, e.g. GPU.
         """
         self.sess.run_with_iobinding(io_binding)
+
+    def _ortvalue_to_torch_tensor(self, ortvalue):
+        torch_tensor = torch.from_dlpack(ortvalue.to_dlpack())
+        return torch_tensor.to(torch.bool) if ortvalue.data_type(
+        ) == 'tensor(bool)' else torch_tensor
