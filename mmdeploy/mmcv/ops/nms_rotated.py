@@ -50,7 +50,8 @@ class ONNXNMSRotatedOp(torch.autograd.Function):
                 indices.append(
                     torch.stack([batch_inds, cls_inds, box_inds], dim=-1))
 
-        indices = torch.cat(indices)
+        indices = torch.cat(indices) if indices else torch.empty(
+            (0, 3), dtype=torch.long, device=boxes.device)
         return indices
 
     @staticmethod
